@@ -1,6 +1,18 @@
 import { db } from '../lib/db.js'
 
-const getAllBookingsDb = (start_datetime) => {
+const getAllBookingsDb = async (start_datetime, check_time) => {
+  if (start_datetime && Boolean(check_time)) {
+    return db.query(
+      `
+      SELECT * FROM bookings
+      WHERE start_datetime::date = $1::date
+        AND start_datetime > NOW()
+      ORDER BY created_at DESC
+      `,
+      [start_datetime]
+    )
+  }
+
   if (start_datetime) {
     return db.query(
       `

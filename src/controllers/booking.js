@@ -7,9 +7,9 @@ import {
 import { BadRequestError, NotFoundError } from '../errors/ApiError.js'
 
 const getAllBookings = async (req, res) => {
-  const { start_datetime } = req.query
+  const { start_datetime, check_time } = req.query
 
-  const bookings = await getAllBookingsDb(start_datetime)
+  const bookings = await getAllBookingsDb(start_datetime, check_time)
 
   return res.json({ bookings: bookings.rows })
 }
