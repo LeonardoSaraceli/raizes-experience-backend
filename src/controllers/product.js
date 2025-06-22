@@ -103,14 +103,7 @@ const getProductById = async (req, res) => {
                         }
                       }
                     }
-                    customer {
-                      displayName
-                      email
-                      phone
-                    }
-                    shippingAddress {
-                      phone
-                    }
+                    # Removido campos sensíveis que requerem permissões especiais
                     metafields(namespace: "custom", first: 1) {
                       edges {
                         node {
@@ -176,14 +169,7 @@ const getProductById = async (req, res) => {
           (sum, item) => sum + (item.quantity || 0),
           0
         ),
-        customer: order.customer
-          ? {
-              name: order.customer.displayName,
-              email: order.customer.email,
-              phone:
-                order.shippingAddress?.phone || order.customer.phone || null,
-            }
-          : null,
+        // Removido dados sensíveis do cliente
         bookingIds,
         productBookingIds,
       }
