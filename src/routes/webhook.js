@@ -1,10 +1,17 @@
-import { Router } from 'express'
-import crypto from 'crypto'
+import express from 'express'
+import {
+  validateShopifyWebhook,
+  rawBodyMiddleware,
+} from '../middleware/auth.js'
 import { updateOrderCreated } from '../controllers/webhook.js'
-import { validateShopifyWebhook } from '../middleware/auth.js'
 
-const router = Router()
+const route = express.Router()
 
-router.post('/order-created', validateShopifyWebhook, updateOrderCreated)
+route.post(
+  '/order-created',
+  rawBodyMiddleware,
+  validateShopifyWebhook,
+  updateOrderCreated
+)
 
-export default router
+export default route
