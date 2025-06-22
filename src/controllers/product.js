@@ -71,8 +71,7 @@ const getProductById = async (req, res) => {
                 }
               }
               
-              # FILTRO OTIMIZADO: busca apenas pedidos com este produto
-              orders(first: 50, query: "line_items.product_id:${productIdNumeric}") {
+              orders(first: 50, query: "line_items.product_id:${productIdNumeric} AND financial_status:paid") {
                 edges {
                   node {
                     id
@@ -103,7 +102,6 @@ const getProductById = async (req, res) => {
                         }
                       }
                     }
-                    # Removido campos sensíveis que requerem permissões especiais
                     metafields(namespace: "custom", first: 1) {
                       edges {
                         node {
@@ -163,13 +161,15 @@ const getProductById = async (req, res) => {
       return {
         id: order.id,
         name: order.name,
+        adminUrl: `${
+          process.env.SHOPIFY_STORE_URL
+        }/admin/orders/${order.name.replace('#', '')}`,
         createdAt: order.createdAt,
         totalPrice: order.totalPriceSet?.shopMoney,
         quantity: productLineItems.reduce(
           (sum, item) => sum + (item.quantity || 0),
           0
         ),
-        // Removido dados sensíveis do cliente
         bookingIds,
         productBookingIds,
       }
