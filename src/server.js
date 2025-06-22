@@ -13,7 +13,7 @@ const app = express()
 app.use(morgan('dev'))
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL,
+    origin: [process.env.FRONTEND_URL, process.env.SHOPIFY_URL, process.env.SHOPIFY_URL_TEST],
     methods: 'GET,POST,PUT,DELETE',
     credentials: true,
     preflightContinue: false,
