@@ -29,7 +29,7 @@ const deleteBookingByIdDb = (id) => {
 }
 
 const createBookingDb = (
-  title,
+  shopify_product_title,
   duration,
   start_datetime,
   shopify_product_id,
@@ -39,22 +39,28 @@ const createBookingDb = (
     return db.query(
       `
     INSERT INTO bookings
-    (title, duration, start_datetime, shopify_product_id, is_activated)
+    (shopify_product_title, duration, start_datetime, shopify_product_id, is_activated)
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
     `,
-      [title, duration, start_datetime, shopify_product_id, is_activated]
+      [
+        shopify_product_title,
+        duration,
+        start_datetime,
+        shopify_product_id,
+        is_activated,
+      ]
     )
   }
 
   return db.query(
     `
     INSERT INTO bookings
-    (title, duration, start_datetime, shopify_product_id)
+    (shopify_product_title, duration, start_datetime, shopify_product_id)
     VALUES ($1, $2, $3, $4)
     RETURNING *
     `,
-    [title, duration, start_datetime, shopify_product_id]
+    [shopify_product_title, duration, start_datetime, shopify_product_id]
   )
 }
 

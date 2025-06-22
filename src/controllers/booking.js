@@ -15,10 +15,10 @@ const getAllBookings = async (req, res) => {
 }
 
 const createBooking = async (req, res) => {
-  const { title, duration, start_datetime, shopify_product_id, is_activated } =
+  const { shopify_product_title, duration, start_datetime, shopify_product_id, is_activated } =
     req.body
 
-  if (!title || !duration || !start_datetime || !shopify_product_id) {
+  if (!shopify_product_title || !duration || !start_datetime || !shopify_product_id) {
     throw new BadRequestError('Missing fields in request body')
   }
 
@@ -53,7 +53,7 @@ const createBooking = async (req, res) => {
   }
 
   const booking = await createBookingDb(
-    title,
+    shopify_product_title,
     duration,
     start_datetime,
     shopify_product_id,
