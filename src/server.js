@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import express, { json } from 'express'
+import express from 'express'
 import 'express-async-errors'
 import morgan from 'morgan'
 import cors from 'cors'
@@ -24,7 +24,32 @@ app.use(
     preflightContinue: false,
   })
 )
-app.use(json())
+
+// IMPORTANTE: Middleware de corpo bruto para webhooks
+app.use((req, res, next) => {
+  if (req.path.startsWith('/webhook')) {
+    let data = ''
+    req.setEncoding('utf8')
+    req.on('data', (chunk) => {
+      data += chunk
+    })
+    req.on('end', () => {
+      req.rawBody = data
+      next()
+    })
+  } else {
+    express.json()(req, res, next)
+  }
+})
+
+// Middleware JSON para rotas normais
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/webhook')) {
+    express.json()(req, res, next)
+  } else {
+    next()
+  }
+})
 
 app.use('/booking', bookingRoute)
 app.use('/product', productRoute)

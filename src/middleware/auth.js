@@ -33,25 +33,33 @@ const validateShopifyWebhook = (req, res, next) => {
       throw new UnauthorizedError('Unauthorized')
     }
 
-    // Obter o corpo BRUTO da requisição
-    const rawBody = req.rawBody || JSON.stringify(req.body)
+    // Usar o corpo bruto já capturado
+    const rawBody = req.rawBody
+    if (!rawBody) {
+      console.error('Raw body is missing')
+      throw new UnauthorizedError('Unauthorized')
+    }
 
     // Calcular HMAC
     const generatedHmac = crypto
       .createHmac('sha256', secret)
-      .update(rawBody)
+      .update(rawBody, 'utf8')
       .digest('base64')
 
-    // Comparar HMACs
+    // Comparar HMACs - AMBOS em base64
     const hmacBuffer = Buffer.from(hmacHeader, 'base64')
-    const generatedHmacBuffer = Buffer.from(generatedHmac, 'utf-8')
+    const generatedHmacBuffer = Buffer.from(generatedHmac, 'base64')
 
     if (hmacBuffer.length !== generatedHmacBuffer.length) {
       console.warn('HMAC length mismatch')
+      console.log(
+        `Received: ${hmacBuffer.length}, Generated: ${generatedHmacBuffer.length}`
+      )
       throw new UnauthorizedError('Unauthorized')
     }
 
     if (crypto.timingSafeEqual(hmacBuffer, generatedHmacBuffer)) {
+      console.log('HMAC validation successful')
       next()
     } else {
       console.warn('HMAC validation failed')
@@ -60,18 +68,9 @@ const validateShopifyWebhook = (req, res, next) => {
       throw new UnauthorizedError('Unauthorized')
     }
   } catch (error) {
-    console.error('Webhook validation error:', error)
+    console.error('Webhook validation error:', error.message)
     throw new UnauthorizedError('Unauthorized')
   }
 }
 
-const rawBodyMiddleware = (req, res, next) => {
-  const chunks = []
-  req.on('data', (chunk) => chunks.push(chunk))
-  req.on('end', () => {
-    req.rawBody = Buffer.concat(chunks).toString('utf-8')
-    next()
-  })
-}
-
-export { verifyToken, validateShopifyWebhook, rawBodyMiddleware }
+export { verifyToken, validateShopifyWebhook }
