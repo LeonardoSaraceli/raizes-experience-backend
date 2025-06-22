@@ -1,4 +1,4 @@
-import { BadRequestError, NotFoundError } from '../errors/ApiError'
+import { BadRequestError, NotFoundError } from '../errors/ApiError.js'
 
 const getAllProducts = async (req, res) => {
   const result = await fetch(
