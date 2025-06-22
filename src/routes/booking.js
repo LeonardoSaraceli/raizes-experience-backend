@@ -8,7 +8,7 @@ import { verifyToken } from '../middleware/auth.js'
 
 const route = Router()
 
-route.get('/', verifyToken, getAllBookings)
+route.get('/', getAllBookings)
 route.post('/', verifyToken, createBooking)
 route.delete('/:id', verifyToken, deleteBookingById)
 
