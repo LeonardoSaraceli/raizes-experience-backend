@@ -1,15 +1,32 @@
 import { db } from '../lib/db.js'
 
-const getAllBookingsDb = async (start_datetime, check_time) => {
-  if (start_datetime && Boolean(check_time)) {
+const getAllBookingsDb = async (
+  start_datetime,
+  check_time,
+  shopify_product_id
+) => {
+  if (start_datetime && Boolean(check_time) && shopify_product_id) {
     return db.query(
       `
       SELECT * FROM bookings
       WHERE start_datetime::date = $1::date
         AND start_datetime > NOW()
+        AND shopify_product_id = $2
       ORDER BY created_at DESC
       `,
-      [start_datetime]
+      [start_datetime, shopify_product_id]
+    )
+  }
+
+  if (start_datetime && shopify_product_id) {
+    return db.query(
+      `
+      SELECT * FROM bookings
+      WHERE start_datetime::date = $1::date
+        AND shopify_product_id = $2
+      ORDER BY created_at DESC
+      `,
+      [start_datetime, shopify_product_id]
     )
   }
 

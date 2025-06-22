@@ -7,18 +7,32 @@ import {
 import { BadRequestError, NotFoundError } from '../errors/ApiError.js'
 
 const getAllBookings = async (req, res) => {
-  const { start_datetime, check_time } = req.query
+  const { start_datetime, check_time, shopify_product_id } = req.query
 
-  const bookings = await getAllBookingsDb(start_datetime, check_time)
+  const bookings = await getAllBookingsDb(
+    start_datetime,
+    check_time,
+    shopify_product_id
+  )
 
   return res.json({ bookings: bookings.rows })
 }
 
 const createBooking = async (req, res) => {
-  const { shopify_product_title, duration, start_datetime, shopify_product_id, is_activated } =
-    req.body
+  const {
+    shopify_product_title,
+    duration,
+    start_datetime,
+    shopify_product_id,
+    is_activated,
+  } = req.body
 
-  if (!shopify_product_title || !duration || !start_datetime || !shopify_product_id) {
+  if (
+    !shopify_product_title ||
+    !duration ||
+    !start_datetime ||
+    !shopify_product_id
+  ) {
     throw new BadRequestError('Missing fields in request body')
   }
 
