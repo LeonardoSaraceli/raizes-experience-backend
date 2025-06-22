@@ -161,7 +161,9 @@ const getProductById = async (req, res) => {
       return {
         id: order.id,
         name: order.name,
-        adminUrl: `${process.env.SHOPIFY_STORE_URL}/admin/orders/${order.id}`,
+        adminUrl: `${process.env.SHOPIFY_STORE_URL}/admin/orders/${order.id
+          .split('/')
+          .pop()}`,
         createdAt: order.createdAt,
         totalPrice: order.totalPriceSet?.shopMoney,
         quantity: productLineItems.reduce(
