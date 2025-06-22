@@ -43,7 +43,7 @@ const updateOrderCreated = async (req, res) => {
       )
 
       const response = await fetch(
-        `https://${process.env.SHOPIFY_STORE_URL}/admin/api/2023-10/orders/${order.id}/metafields.json`,
+        `${process.env.SHOPIFY_STORE_URL}/admin/api/2023-10/orders/${order.id}/metafields.json`,
         {
           method: 'POST',
           headers: {
