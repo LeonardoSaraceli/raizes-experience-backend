@@ -17,4 +17,20 @@ const verifyToken = (req, res, next) => {
   }
 }
 
-export { verifyToken }
+const validateShopifyWebhook = (req, res, next) => {
+  const hmac = req.headers['x-shopify-hmac-sha256']
+  const secret = process.env.SHOPIFY_WEBHOOK_SECRET
+
+  const generatedHmac = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(req.body))
+    .digest('base64')
+
+  if (crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(generatedHmac))) {
+    next()
+  } else {
+    throw new UnauthorizedError('Unauthorized.')
+  }
+}
+
+export { verifyToken, validateShopifyWebhook }

@@ -1,3 +1,5 @@
+import { BadRequestError, NotFoundError } from '../errors/ApiError'
+
 const getAllProducts = async (req, res) => {
   const result = await fetch(
     `${process.env.SHOPIFY_STORE_URL}/api/2023-07/graphql.json`,
@@ -37,29 +39,35 @@ const getAllProducts = async (req, res) => {
 const getProductById = async (req, res) => {
   const { id } = req.params
   const { bookingId } = req.query
-
   const globalId = `gid://shopify/Product/${id}`
 
-  try {
-    const result = await fetch(
-      `${process.env.SHOPIFY_STORE_URL}/admin/api/2023-07/graphql.json`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_TOKEN,
-        },
-        body: JSON.stringify({
-          query: `
+  const result = await fetch(
+    `${process.env.SHOPIFY_STORE_URL}/admin/api/2023-07/graphql.json`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ADMIN_TOKEN,
+      },
+      body: JSON.stringify({
+        query: `
             query GetProductAndOrders($productId: ID!) {
               product: node(id: $productId) {
                 ... on Product {
                   id
                   title
+                  variants(first: 10) {
+                    edges {
+                      node {
+                        id
+                        title
+                      }
+                    }
+                  }
                 }
               }
               
-              orders(first: 10, query: "tag:booking_${bookingId}") {
+              orders(first: 50, query: "created_at:>'2023-01-01'") {
                 edges {
                   node {
                     id
@@ -71,15 +79,20 @@ const getProductById = async (req, res) => {
                         currencyCode
                       }
                     }
-                    lineItems(first: 10) {
+                    lineItems(first: 50) {
                       edges {
                         node {
                           quantity
                           title
                           variant {
+                            id
                             product {
                               id
                             }
+                          }
+                          customAttributes {
+                            key
+                            value
                           }
                         }
                       }
@@ -92,77 +105,93 @@ const getProductById = async (req, res) => {
                     shippingAddress {
                       phone
                     }
+                    metafield(namespace: "custom", key: "booking_id") {
+                      value
+                    }
                   }
                 }
               }
             }
           `,
-          variables: {
-            productId: globalId,
-          },
-        }),
-      }
+        variables: {
+          productId: globalId,
+        },
+      }),
+    }
+  )
+
+  const response = await result.json()
+
+  if (response.errors) {
+    throw new BadRequestError('GraphQL query error')
+  }
+
+  const product = response.data?.product
+  const orders = response.data?.orders?.edges.map((edge) => edge.node) || []
+
+  if (!product) {
+    throw new NotFoundError('Product not found')
+  }
+
+  const processedOrders = orders.map((order) => {
+    const bookingIds = order.metafield?.value
+      ? JSON.parse(order.metafield.value)
+      : []
+
+    const productItems = order.lineItems.edges.filter(
+      (edge) => edge.node.variant?.product?.id === globalId
     )
 
-    const response = await result.json()
+    const productQuantity = productItems.reduce(
+      (total, item) => total + item.node.quantity,
+      0
+    )
 
-    // Debug: Log completo da resposta
-    console.log('Shopify API Response:', JSON.stringify(response, null, 2))
+    const phone = order.shippingAddress?.phone || order.customer?.phone || null
 
-    if (response.errors) {
-      console.error('GraphQL Errors:', response.errors)
-      return res.status(400).json({
-        error: 'GraphQL query error',
-        details: response.errors,
-      })
+    const productBookingIds = productItems
+      .map(
+        (item) =>
+          item.node.customAttributes.find((attr) => attr.key === 'booking_id')
+            ?.value
+      )
+      .filter(Boolean)
+      .map((id) => parseInt(id))
+
+    return {
+      id: order.id,
+      name: order.name,
+      createdAt: order.createdAt,
+      totalPrice: order.totalPriceSet?.shopMoney,
+      quantity: productQuantity,
+      customer: order.customer
+        ? {
+            name: order.customer.displayName,
+            email: order.customer.email,
+            phone: phone,
+          }
+        : null,
+      bookingIds: bookingIds,
+      productBookingIds: productBookingIds,
     }
+  })
 
-    const product = response.data?.product
-    const orders = response.data?.orders?.edges.map((edge) => edge.node) || []
+  const filteredOrders = bookingId
+    ? processedOrders.filter(
+        (order) =>
+          order.bookingIds.includes(parseInt(bookingId, 10)) ||
+          order.productBookingIds.includes(parseInt(bookingId, 10))
+      )
+    : processedOrders
 
-    if (!product) {
-      return res.status(404).json({ error: 'Product not found' })
-    }
-
-    return res.json({
-      product: {
-        id: product.id,
-        title: product.title,
-      },
-      orders: orders.map((order) => {
-        // Calcular quantidade total do produto específico
-        const productQuantity = order.lineItems.edges.reduce((total, item) => {
-          return total + item.node.quantity
-        }, 0)
-
-        // Obter telefone do cliente (priorizando o telefone de entrega)
-        const phone =
-          order.shippingAddress?.phone || order.customer?.phone || null
-
-        return {
-          id: order.id,
-          name: order.name,
-          createdAt: order.createdAt,
-          totalPrice: order.totalPriceSet?.shopMoney,
-          quantity: productQuantity,
-          customer: order.customer
-            ? {
-                name: order.customer.displayName,
-                email: order.customer.email,
-                phone: phone,
-              }
-            : null,
-          bookingId: bookingId,
-        }
-      }),
-    })
-  } catch (error) {
-    console.error('Server Error:', error)
-    return res.status(500).json({
-      error: 'Internal server error',
-      details: error.message,
-    })
-  }
+  return res.json({
+    product: {
+      id: product.id,
+      title: product.title,
+      variants: product.variants.edges.map((edge) => edge.node),
+    },
+    orders: filteredOrders,
+  })
 }
 
 export { getAllProducts, getProductById }
