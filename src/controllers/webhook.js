@@ -2,9 +2,9 @@ const updateOrderCreated = async (req, res) => {
   try {
     // Parse do corpo manualmente se necessário
     const orderData = req.body || JSON.parse(req.rawBody || '{}')
-    const { order } = orderData
+    const order = orderData.order || orderData
 
-    if (!order) {
+    if (!order || !order.id) {
       console.error('Missing order data in webhook')
       return res.status(400).json({ error: 'Missing order data' })
     }
