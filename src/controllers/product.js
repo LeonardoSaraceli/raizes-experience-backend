@@ -84,18 +84,21 @@ const getProductById = async (req, res) => {
                         currencyCode
                       }
                     }
-                    lineItems(first: 10, query: "product_id:${productIdNumeric}") {
+                    lineItems(first: 50) {
                       edges {
                         node {
                           quantity
                           title
                           variant {
                             id
-                            title # Adicionado para debug
+                            title
                           }
                           customAttributes {
                             key
                             value
+                          }
+                          product {
+                            id
                           }
                         }
                       }
@@ -149,11 +152,12 @@ const getProductById = async (req, res) => {
           ? JSON.parse(bookingMeta.value)
           : []
 
-      // Linhas de produto filtradas
-      const productLineItems =
-        order.lineItems?.edges
-          .filter((edge) => edge.node.variant?.id)
-          .map((edge) => edge.node) || []
+      // Obter todos os line items e filtrar pelo produto
+      const allLineItems = order.lineItems?.edges.map((edge) => edge.node) || []
+      // Filtrar apenas os line items do produto atual
+      const productLineItems = allLineItems.filter(
+        (item) => item.product?.id === globalId
+      )
 
       // Atributos customizados
       const productBookingIds = productLineItems.flatMap((item) =>
