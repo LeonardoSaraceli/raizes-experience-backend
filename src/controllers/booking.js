@@ -91,9 +91,6 @@ const createBooking = async (req, res) => {
     }
   }
 
-  // FUNÇÃO PARA VERIFICAR CONFLITOS
-  await checkConflict(shopify_product_id, start_datetime)
-
   // CRIAÇÃO DE BOOKINGS (ÚNICO OU SÉRIE)
   const createdBookings = []
 
@@ -104,7 +101,7 @@ const createBooking = async (req, res) => {
     while (current <= endDate) {
       const currentISO = current.toISOString()
 
-      if (!(await checkConflict(currentISO))) {
+      if (!(await checkConflict(shopify_product_id, currentISO))) {
         const booking = await createBookingDb(
           shopify_product_title,
           duration,
@@ -121,7 +118,7 @@ const createBooking = async (req, res) => {
     return res.status(201).json({ bookings: createdBookings })
   } else {
     // Criação única (existente)
-    if (await checkConflict(start_datetime)) {
+    if (await checkConflict(shopify_product_id, start_datetime)) {
       throw new BadRequestError('Booking already exists for this timeslot')
     }
 
