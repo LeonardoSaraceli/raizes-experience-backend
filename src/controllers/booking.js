@@ -1,4 +1,5 @@
 import {
+  checkConflict,
   createBookingDb,
   deleteBookingByIdDb,
   getAllBookingsDb,
@@ -25,6 +26,7 @@ const createBooking = async (req, res) => {
     start_datetime,
     shopify_product_id,
     is_activated,
+    fixed_date,
   } = req.body
 
   if (
@@ -36,6 +38,28 @@ const createBooking = async (req, res) => {
     throw new BadRequestError('Missing fields in request body')
   }
 
+  if (fixed_date) {
+    if (!timestampRegex.test(fixed_date)) {
+      throw new BadRequestError('Invalid fixed_date format')
+    }
+
+    const fixedDate = new Date(fixed_date)
+    if (isNaN(fixedDate.getTime())) {
+      throw new BadRequestError('Invalid fixed_date')
+    }
+
+    // Verificar se fixed_date está dentro de 6 meses
+    const maxDate = new Date(startDate)
+    maxDate.setMonth(maxDate.getMonth() + 6)
+
+    if (fixedDate > maxDate) {
+      throw new BadRequestError('fixed_date cannot exceed 6 months')
+    }
+
+    if (fixedDate <= startDate) {
+      throw new BadRequestError('fixed_date must be after start_datetime')
+    }
+  }
   const durationRegex = /^[\d\s\w]+$/
 
   if (!durationRegex.test(duration)) {
@@ -66,15 +90,50 @@ const createBooking = async (req, res) => {
     )
   }
 
-  const booking = await createBookingDb(
-    shopify_product_title,
-    duration,
-    start_datetime,
-    shopify_product_id,
-    is_activated
-  )
+  // FUNÇÃO PARA VERIFICAR CONFLITOS
+  await checkConflict(shopify_product_id, start_datetime)
 
-  return res.status(201).json({ booking: booking.rows[0] })
+  // CRIAÇÃO DE BOOKINGS (ÚNICO OU SÉRIE)
+  const createdBookings = []
+
+  if (fixed_date) {
+    const current = new Date(startDate)
+    const endDate = new Date(fixed_date)
+
+    while (current <= endDate) {
+      const currentISO = current.toISOString()
+
+      if (!(await checkConflict(currentISO))) {
+        const booking = await createBookingDb(
+          shopify_product_title,
+          duration,
+          currentISO,
+          shopify_product_id,
+          is_activated
+        )
+        createdBookings.push(booking.rows[0])
+      }
+
+      current.setDate(current.getDate() + 1) // Avança 1 dia
+    }
+
+    return res.status(201).json({ bookings: createdBookings })
+  } else {
+    // Criação única (existente)
+    if (await checkConflict(start_datetime)) {
+      throw new BadRequestError('Booking already exists for this timeslot')
+    }
+
+    const booking = await createBookingDb(
+      shopify_product_title,
+      duration,
+      start_datetime,
+      shopify_product_id,
+      is_activated
+    )
+
+    return res.status(201).json({ booking: booking.rows[0] })
+  }
 }
 
 const deleteBookingById = async (req, res) => {

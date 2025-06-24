@@ -93,9 +93,20 @@ const createBookingDb = (
   )
 }
 
+const checkConflict = async (shopify_product_id, datetime) => {
+  const result = await db.query(
+    `SELECT 1 FROM bookings 
+       WHERE shopify_product_id = $1 
+         AND start_datetime = $2`,
+    [shopify_product_id, datetime]
+  )
+  return result.rows.length > 0
+}
+
 export {
   getAllBookingsDb,
   deleteBookingByIdDb,
   createBookingDb,
   getBookingByIdDb,
+  checkConflict,
 }
