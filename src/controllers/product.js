@@ -40,8 +40,6 @@ const getProductById = async (req, res) => {
   const { id } = req.params
   const { bookingId } = req.query
   const globalId = `gid://shopify/Product/${id}`
-
-  // ID numérico para filtro
   const productIdNumeric = id.split('/').pop() || id
 
   try {
@@ -99,6 +97,12 @@ const getProductById = async (req, res) => {
                           product {
                             id
                           }
+                          originalUnitPriceSet {
+                            shopMoney {
+                              amount
+                              currencyCode
+                            }
+                          }
                         }
                       }
                     }
@@ -127,7 +131,6 @@ const getProductById = async (req, res) => {
       return res.status(400).json({ error: 'GraphQL query error' })
     }
 
-    // Processamento seguro de dados
     const product = response.data?.product
     const orders = response.data?.orders?.edges.map((edge) => edge.node) || []
 
@@ -136,27 +139,47 @@ const getProductById = async (req, res) => {
     }
 
     const processedOrders = orders.map((order) => {
-      // Metafield seguro
       const bookingMeta = order.metafields?.edges[0]?.node
       const bookingIds =
         bookingMeta?.key === 'booking_id' && bookingMeta.value
           ? JSON.parse(bookingMeta.value)
           : []
 
-      // Obter todos os line items e filtrar pelo produto
       const allLineItems = order.lineItems?.edges.map((edge) => edge.node) || []
-      // Filtrar apenas os line items do produto atual
       const productLineItems = allLineItems.filter(
         (item) => item.product?.id === globalId
       )
 
-      // Atributos customizados
+      // Extrair todos os booking_ids dos itens para filtro posterior
       const productBookingIds = productLineItems.flatMap((item) =>
         (item.customAttributes || [])
           .filter((attr) => attr.key === 'booking_id')
           .map((attr) => parseInt(attr.value))
           .filter((id) => !isNaN(id))
       )
+
+      // Calcular subtotal e quantidade baseado no bookingId da query
+      let subtotal = 0
+      let quantity = 0
+      const currency = order.totalPriceSet?.shopMoney?.currencyCode || 'USD'
+
+      // Filtrar itens com booking_id correspondente (se bookingId existir)
+      const matchingItems = bookingId
+        ? productLineItems.filter((item) =>
+            (item.customAttributes || []).some(
+              (attr) => attr.key === 'booking_id' && attr.value === bookingId
+            )
+          )
+        : productLineItems
+
+      matchingItems.forEach((item) => {
+        const itemQuantity = item.quantity || 0
+        const unitPrice = parseFloat(
+          item.originalUnitPriceSet?.shopMoney?.amount || '0'
+        )
+        quantity += itemQuantity
+        subtotal += unitPrice * itemQuantity
+      })
 
       return {
         id: order.id,
@@ -165,17 +188,15 @@ const getProductById = async (req, res) => {
           .split('/')
           .pop()}`,
         createdAt: order.createdAt,
-        totalPrice: order.totalPriceSet?.shopMoney,
-        quantity: productLineItems.reduce(
-          (sum, item) => sum + (item.quantity || 0),
-          0
-        ),
+        subtotal,
+        currency,
+        quantity,
         bookingIds,
         productBookingIds,
       }
     })
 
-    // Filtro por booking ID
+    // Filtrar pedidos por bookingId (se aplicável)
     const filteredOrders = bookingId
       ? processedOrders.filter((order) => {
           const bid = parseInt(bookingId, 10)
