@@ -38,28 +38,6 @@ const createBooking = async (req, res) => {
     throw new BadRequestError('Missing fields in request body')
   }
 
-  if (fixed_date) {
-    if (!timestampRegex.test(fixed_date)) {
-      throw new BadRequestError('Invalid fixed_date format')
-    }
-
-    const fixedDate = new Date(fixed_date)
-    if (isNaN(fixedDate.getTime())) {
-      throw new BadRequestError('Invalid fixed_date')
-    }
-
-    // Verificar se fixed_date está dentro de 6 meses
-    const maxDate = new Date(startDate)
-    maxDate.setMonth(maxDate.getMonth() + 6)
-
-    if (fixedDate > maxDate) {
-      throw new BadRequestError('fixed_date cannot exceed 6 months')
-    }
-
-    if (fixedDate <= startDate) {
-      throw new BadRequestError('fixed_date must be after start_datetime')
-    }
-  }
   const durationRegex = /^[\d\s\w]+$/
 
   if (!durationRegex.test(duration)) {
@@ -88,6 +66,29 @@ const createBooking = async (req, res) => {
     throw new BadRequestError(
       'shopify_product_id must be in an positive integer'
     )
+  }
+
+  if (fixed_date) {
+    if (!timestampRegex.test(fixed_date)) {
+      throw new BadRequestError('Invalid fixed_date format')
+    }
+
+    const fixedDate = new Date(fixed_date)
+    if (isNaN(fixedDate.getTime())) {
+      throw new BadRequestError('Invalid fixed_date')
+    }
+
+    // Verificar se fixed_date está dentro de 6 meses
+    const maxDate = new Date(startDate)
+    maxDate.setMonth(maxDate.getMonth() + 6)
+
+    if (fixedDate > maxDate) {
+      throw new BadRequestError('fixed_date cannot exceed 6 months')
+    }
+
+    if (fixedDate <= startDate) {
+      throw new BadRequestError('fixed_date must be after start_datetime')
+    }
   }
 
   // FUNÇÃO PARA VERIFICAR CONFLITOS
